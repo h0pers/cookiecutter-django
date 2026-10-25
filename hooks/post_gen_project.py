@@ -75,6 +75,10 @@ def remove_nginx_docker_files():
     shutil.rmtree(Path("compose", "production", "nginx"))
 
 
+def remove_traefik_files():
+    shutil.rmtree(Path("compose", "production", "traefik"))
+
+
 def remove_utility_files():
     shutil.rmtree("utility")
 
@@ -449,6 +453,8 @@ def main():  # noqa: C901, PLR0912, PLR0915
         remove_utility_files()
         if "{{ cookiecutter.cloud_provider }}".lower() != "none":
             remove_nginx_docker_files()
+        if "{{ cookiecutter.use_external_traefik }}".lower() == "y":
+            remove_traefik_files()
     else:
         remove_docker_files()
 

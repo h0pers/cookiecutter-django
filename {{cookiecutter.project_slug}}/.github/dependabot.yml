@@ -44,7 +44,9 @@ updates:
       - 'compose/local/node/'
       - 'compose/production/aws/'
       - 'compose/production/postgres/'
+{%- if cookiecutter.use_external_traefik == 'n' %}
       - 'compose/production/traefik/'
+{%- endif %}
 {%- if cookiecutter.cloud_provider == 'None' %}
       - 'compose/production/nginx/'
 {%- endif %}
