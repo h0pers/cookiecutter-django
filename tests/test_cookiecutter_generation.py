@@ -134,6 +134,15 @@ SUPPORTED_COMBINATIONS = [
     {"ci_tool": "Gitlab"},
     {"ci_tool": "Github"},
     {"ci_tool": "Drone"},
+    {"use_external_traefik": "y", "use_docker": "y"},
+    {
+        "use_external_traefik": "y",
+        "use_docker": "y",
+        "use_celery": "y",
+        "cloud_provider": "None",
+        "use_whitenoise": "y",
+    },
+    {"use_external_traefik": "y", "use_docker": "y", "cloud_provider": "AWS", "domain_name": "app.example.com"},
     {"keep_local_envs_in_vcs": "y"},
     {"keep_local_envs_in_vcs": "n"},
     {"debug": "y"},
@@ -145,6 +154,7 @@ UNSUPPORTED_COMBINATIONS = [
     {"cloud_provider": "GCP", "mail_service": "Amazon SES"},
     {"cloud_provider": "Azure", "mail_service": "Amazon SES"},
     {"cloud_provider": "None", "mail_service": "Amazon SES"},
+    {"use_external_traefik": "y", "use_docker": "n"},
 ]
 
 

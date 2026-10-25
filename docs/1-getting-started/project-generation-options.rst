@@ -144,6 +144,10 @@ ci_tool:
     4. `Github Actions`_
     5. `Drone CI`_
 
+use_external_traefik:
+    Indicates whether production should route through a shared Traefik that already runs on the server,
+    instead of starting its own. Requires ``use_docker``. See :ref:`shared-traefik`.
+
 keep_local_envs_in_vcs:
     Indicates whether the project’s .envs/.local/ should be kept in VCS (comes in handy when working in teams where local environment reproducibility is strongly encouraged).
 
