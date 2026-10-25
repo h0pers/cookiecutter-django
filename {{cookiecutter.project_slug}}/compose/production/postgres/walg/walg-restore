@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+
+
+### Restore the database from WAL-G into the empty volume mounted at /restore.
+###
+### Usage:
+###     $ walg-restore                      restore the latest state
+###     $ walg-restore "2026-10-02 14:25"   restore up to this moment (UTC), or e.g. "10 minutes ago"
+###
+### Run it in the postgres-backup service with the database stopped, see the backups guide.
+
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+
+target_time=""
+pg_time=""
+if [ -n "${1:-}" ]; then
+    target_time=$(date -u -d "$1" +%Y-%m-%dT%H:%M:%SZ)    # WAL-G's format, to pick the base backup
+    pg_time=$(date -u -d "$1" '+%Y-%m-%d %H:%M:%S+00')    # PostgreSQL's format, to stop the replay
+fi
+
+if [ -n "$(ls -A /restore)" ]; then
+    echo "/restore is not empty: mount a new, empty volume there." >&2
+    exit 1
+fi
+
+if pg_isready -q -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}"; then
+    echo "The database is still running: stop it first, see the backups guide." >&2
+    exit 1
+fi
+
+# 1. Fetch the newest base backup that finished before the target time
+backup=LATEST
+if [ -n "${target_time}" ]; then
+    backup=$(wal-g backup-list --detail | awk -v t="${target_time}" \
+        'NR > 1 && $6 < t && $6 > last {last = $6; name = $1} END {print name}')
+    if [ -z "${backup}" ]; then
+        echo "No base backup finished before ${1}." >&2
+        exit 1
+    fi
+fi
+wal-g backup-fetch /restore "${backup}"
+
+# 2. Add the WAL the old server hadn't archived yet, so nothing is lost
+cp "${PGDATA}"/pg_wal/0* /restore/pg_wal/ 2>/dev/null || true
+
+# 3. Replay WAL in a temporary server without network access, then promote it
+touch /restore/recovery.signal
+postgres -D /restore -c listen_addresses='' \
+    -c archive_mode=on -c "archive_command=wal-g wal-push %p" \
+    -c "restore_command=wal-g wal-fetch %f %p" \
+    -c "recovery_target_time=${pg_time}" -c recovery_target_action=promote &
+server=$!
+
+# The generated POSTGRES_USER owns the cluster; there is no "postgres" role to connect as
+restored=(psql -h /var/run/postgresql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -X)
+until "${restored[@]}" -tAc "SELECT NOT pg_is_in_recovery()" 2>/dev/null | grep -q t; do
+    kill -0 "${server}"
+    sleep 2
+done
+
+"${restored[@]}" -c "SELECT pg_last_xact_replay_timestamp() AS restored_up_to"
+kill -INT "${server}"
+wait "${server}"

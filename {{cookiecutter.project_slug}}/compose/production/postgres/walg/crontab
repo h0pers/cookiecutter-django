@@ -1,0 +1,2 @@
+# Nightly base backup, in UTC. WAL is archived continuously in between.
+0 3 * * * walg-backup

@@ -1,0 +1,14 @@
+# WAL-G
+# ------------------------------------------------------------------------------
+# Without WALG_S3_PREFIX, backups go to the production_postgres_walg volume on this server.
+# https://wal-g.readthedocs.io/STORAGES/#s3
+# WALG_S3_PREFIX=s3://bucket/project
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+# AWS_REGION=
+# For S3-compatible storage such as MinIO, Cloudflare R2 or Hetzner:
+# AWS_ENDPOINT=
+# AWS_S3_FORCE_PATH_STYLE=true
+# Encrypts backups before upload; required with S3. Generate with: openssl rand -hex 32
+# WALG_LIBSODIUM_KEY=
+# WALG_LIBSODIUM_KEY_TRANSFORM=hex

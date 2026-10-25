@@ -160,6 +160,10 @@ SUPPORTED_COMBINATIONS = [
         "cloud_provider": "AWS",
         "use_async": "y",
     },
+    {"postgres_backup": "WAL-G", "use_docker": "y"},
+    {"postgres_backup": "WAL-G", "use_docker": "y", "postgresql_version": "14"},
+    {"postgres_backup": "WAL-G", "use_docker": "n"},
+    {"postgres_backup": "pg_dump", "use_docker": "y"},
     {"keep_local_envs_in_vcs": "y"},
     {"keep_local_envs_in_vcs": "n"},
     {"debug": "y"},
@@ -405,6 +409,27 @@ def test_deploy_ssh_files(cookies, context, deploy_ssh):
         assert build["jobs"]["deploy"]["uses"] == "./.github/workflows/deploy.yml"
         compose = yaml.safe_load((result.project_path / "docker-compose.production.yml").read_text())
         assert compose["services"]["django"]["image"] == "${IMAGE_PREFIX:-my_test_project}-django:${IMAGE_TAG:-latest}"
+
+
+@pytest.mark.parametrize(
+    ("use_docker", "postgres_backup", "walg_files_exist"),
+    [("y", "WAL-G", True), ("y", "pg_dump", False), ("n", "WAL-G", False)],
+)
+def test_walg_files(cookies, context, use_docker, postgres_backup, walg_files_exist):
+    context.update({"use_docker": use_docker, "postgres_backup": postgres_backup})
+    result = cookies.bake(extra_context=context)
+    assert result.exit_code == 0
+
+    walg_files = [
+        result.project_path / "compose/production/postgres/walg",
+        result.project_path / ".envs/.production/.walg",
+    ]
+    assert all(path.exists() is walg_files_exist for path in walg_files)
+    if use_docker == "y":
+        # pg_dump scripts stay available next to WAL-G
+        assert (result.project_path / "compose/production/postgres/maintenance/backup").exists()
+        compose = yaml.safe_load((result.project_path / "docker-compose.production.yml").read_text())
+        assert ("postgres-backup" in compose["services"]) is walg_files_exist
 
 
 @pytest.mark.parametrize("slug", ["project slug", "Project_Slug"])

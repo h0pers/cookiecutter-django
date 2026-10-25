@@ -153,6 +153,13 @@ deploy_ssh:
     and deploy them to a server over SSH, with zero-downtime rollouts and rollbacks.
     Requires ``ci_tool`` set to ``Github`` and ``use_external_traefik``. See :ref:`deploy-ssh`.
 
+postgres_backup:
+    How production PostgreSQL is backed up when ``use_docker`` is ``y``:
+
+    1. WAL-G: continuous archiving with point-in-time recovery, locally or to S3, see :ref:`walg-backups`.
+       Upstream's pg_dump scripts are kept too.
+    2. pg_dump: only upstream's pg_dump scripts, see :doc:`../4-guides/docker-postgres-backups`.
+
 keep_local_envs_in_vcs:
     Indicates whether the project’s .envs/.local/ should be kept in VCS (comes in handy when working in teams where local environment reproducibility is strongly encouraged).
 

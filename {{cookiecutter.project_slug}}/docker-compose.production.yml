@@ -8,6 +8,9 @@ ${IMAGE_PREFIX:-{{ cookiecutter.project_slug }}}-{{ ghcr_name or name }}:${IMAGE
 volumes:
   production_postgres_data: {}
   production_postgres_data_backups: {}
+  {%- if cookiecutter.postgres_backup == 'WAL-G' %}
+  production_postgres_walg: {}
+  {%- endif %}
   {%- if cookiecutter.use_external_traefik == 'n' %}
   production_traefik: {}
   {%- endif %}
@@ -91,6 +94,17 @@ services:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
     image: {{ image('postgres') }}
+    {%- if cookiecutter.postgres_backup == 'WAL-G' %}
+    # Ships every finished WAL segment to WAL-G storage, at least once a minute
+    command:
+      - postgres
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=wal-g wal-push %p
+      - -c
+      - archive_timeout=60
+    {%- endif %}
     volumes:
       {%- if cookiecutter.postgresql_version|int >= 18 %}
       - production_postgres_data:/var/lib/postgresql/{{ cookiecutter.postgresql_version }}/docker
@@ -98,8 +112,43 @@ services:
       - production_postgres_data:/var/lib/postgresql/data
       {%- endif %}
       - production_postgres_data_backups:/backups
+      {%- if cookiecutter.postgres_backup == 'WAL-G' %}
+      - production_postgres_walg:/walg
+      {%- endif %}
     env_file:
       - ./.envs/.production/.postgres
+      {%- if cookiecutter.postgres_backup == 'WAL-G' %}
+      - path: ./.envs/.production/.walg
+        required: false
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Takes the base backups; WAL is archived by postgres itself
+  postgres-backup:
+    build:
+      context: .
+      dockerfile: ./compose/production/postgres/Dockerfile
+    image: {{ image('postgres') }}
+    user: postgres
+    command: walg-backup-scheduler
+    volumes:
+      {%- if cookiecutter.postgresql_version|int >= 18 %}
+      - production_postgres_data:/var/lib/postgresql/{{ cookiecutter.postgresql_version }}/docker
+      {%- else %}
+      - production_postgres_data:/var/lib/postgresql/data
+      {%- endif %}
+      - production_postgres_walg:/walg
+    env_file:
+      - ./.envs/.production/.postgres
+      - path: ./.envs/.production/.walg
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      {%- endif %}
   {%- if cookiecutter.use_external_traefik == 'n' %}
 
   traefik:

@@ -42,6 +42,7 @@
   "ci_tool": ["None", "Travis", "Gitlab", "Github", "Drone"],
   "use_external_traefik": "n",
   "deploy_ssh": "n",
+  "postgres_backup": ["WAL-G", "pg_dump"],
   "keep_local_envs_in_vcs": "y",
   "debug": "n"
 }

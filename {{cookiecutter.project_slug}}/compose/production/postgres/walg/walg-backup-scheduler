@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+
+### Take the first base backup if there is none, then back up on the crontab schedule.
+### Runs as the command of the postgres-backup service.
+
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+
+if [ -n "${WALG_S3_PREFIX:-}" ] && [ -z "${WALG_LIBSODIUM_KEY:-}" ]; then
+    echo "WALG_S3_PREFIX is set without WALG_LIBSODIUM_KEY: refusing to upload unencrypted backups." >&2
+    exit 1
+fi
+
+if ! wal-g backup-list 2>/dev/null | grep -q base_; then
+    walg-backup
+fi
+
+exec supercronic /etc/supercronic/crontab
