@@ -148,6 +148,11 @@ use_external_traefik:
     Indicates whether production should route through a shared Traefik that already runs on the server,
     instead of starting its own. Requires ``use_docker``. See :ref:`shared-traefik`.
 
+deploy_ssh:
+    Indicates whether GitHub Actions should build the production images, push them to GHCR
+    and deploy them to a server over SSH, with zero-downtime rollouts and rollbacks.
+    Requires ``ci_tool`` set to ``Github`` and ``use_external_traefik``. See :ref:`deploy-ssh`.
+
 keep_local_envs_in_vcs:
     Indicates whether the project’s .envs/.local/ should be kept in VCS (comes in handy when working in teams where local environment reproducibility is strongly encouraged).
 

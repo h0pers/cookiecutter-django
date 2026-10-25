@@ -4,6 +4,9 @@ from django.contrib import admin
 {%- if cookiecutter.use_async == 'y' %}
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 {%- endif %}
+{%- if cookiecutter.deploy_ssh == 'y' %}
+from django.http import HttpResponse
+{%- endif %}
 from django.urls import include
 from django.urls import path
 from django.views import defaults as default_views
@@ -29,6 +32,10 @@ urlpatterns = [
     # User management
     path("users/", include("{{ cookiecutter.project_slug }}.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
+    {%- if cookiecutter.deploy_ssh == 'y' %}
+    # Container healthcheck: answers without touching the database
+    path("healthz/", lambda request: HttpResponse("ok"), name="healthz"),
+    {%- endif %}
     # Your stuff: custom urls includes go here
     # ...
     # Media files

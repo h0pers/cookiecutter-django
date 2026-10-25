@@ -1,0 +1,102 @@
+name: Deploy
+
+# Called by the Build workflow, or run by hand with an older tag to roll back
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Image tag to deploy, e.g. sha-<full commit sha>'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to deploy, e.g. sha-<full commit sha>'
+        required: true
+        type: string
+
+permissions: {}
+
+# Never run two deploys against the server at once, and never cancel one half-way
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    env:
+      TAG: {% raw %}${{ inputs.tag }}{% endraw %}
+    steps:
+      - name: Resolve commit
+        id: commit
+        run: |
+          if [[ ! "$TAG" =~ ^sha-[0-9a-f]{40}$ ]]; then
+            echo "Tag must look like sha-<full commit sha>, got: $TAG"
+            exit 1
+          fi
+          echo "sha=${TAG#sha-}" >> "$GITHUB_OUTPUT"
+
+      # The compose file has to match the images, so take it from the deployed commit
+      - name: Checkout Code Repository
+        uses: actions/checkout@v7
+        with:
+          ref: {% raw %}${{ steps.commit.outputs.sha }}{% endraw %}
+
+      - name: Write env files
+        env:
+          ENVS_DJANGO: {% raw %}${{ secrets.ENVS_PRODUCTION_DJANGO }}{% endraw %}
+          ENVS_POSTGRES: {% raw %}${{ secrets.ENVS_PRODUCTION_POSTGRES }}{% endraw %}
+        run: |
+          : "${ENVS_DJANGO:?Set the ENVS_PRODUCTION_DJANGO secret}"
+          : "${ENVS_POSTGRES:?Set the ENVS_PRODUCTION_POSTGRES secret}"
+          mkdir -p .envs/.production
+          printf '%s\n' "$ENVS_DJANGO" > .envs/.production/.django
+          printf '%s\n' "$ENVS_POSTGRES" > .envs/.production/.postgres
+          # Read by docker compose on the server to pick the images
+          printf 'IMAGE_PREFIX=ghcr.io/%s\nIMAGE_TAG=%s\n' "${GITHUB_REPOSITORY,,}" "$TAG" > .env
+
+      - name: Copy files to the server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: {% raw %}${{ secrets.VPS_HOST }}{% endraw %}
+          username: {% raw %}${{ secrets.VPS_USER }}{% endraw %}
+          key: {% raw %}${{ secrets.SSH_PRIVATE_KEY }}{% endraw %}
+          source: .env,.envs/.production/.django,.envs/.production/.postgres,docker-compose.production.yml
+          target: {% raw %}${{ github.event.repository.name }}{% endraw %}
+
+      - name: Release on the server
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          APP_DIR: {% raw %}${{ github.event.repository.name }}{% endraw %}
+          REGISTRY_USER: {% raw %}${{ github.actor }}{% endraw %}
+          REGISTRY_TOKEN: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+        with:
+          host: {% raw %}${{ secrets.VPS_HOST }}{% endraw %}
+          username: {% raw %}${{ secrets.VPS_USER }}{% endraw %}
+          key: {% raw %}${{ secrets.SSH_PRIVATE_KEY }}{% endraw %}
+          envs: APP_DIR,REGISTRY_USER,REGISTRY_TOKEN
+          script: |
+            set -euo pipefail
+            cd "$HOME/$APP_DIR"
+            chmod 600 .env .envs/.production/.django .envs/.production/.postgres
+            export COMPOSE_FILE=docker-compose.production.yml
+
+            echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+            docker compose pull --quiet
+            docker logout ghcr.io
+
+            # Start supporting services if they aren't running, but don't restart them on every deploy.
+            # Apply changes to them by hand: docker compose up -d <service>
+            docker compose up -d --no-build --no-deps --no-recreate postgres redis{% if cookiecutter.cloud_provider == 'None' %} nginx{% endif %}
+            # Migrations run once here, before any new django container takes traffic
+            docker compose run --rm --no-deps django /release
+            docker rollout -f docker-compose.production.yml --timeout 120 django
+            {%- if cookiecutter.use_celery == 'y' %}
+            docker compose up -d --no-build --no-deps celeryworker celerybeat flower
+            {%- endif %}
+            docker image prune -f

@@ -79,6 +79,12 @@ def remove_traefik_files():
     shutil.rmtree(Path("compose", "production", "traefik"))
 
 
+def remove_deploy_ssh_files():
+    Path("compose", "production", "django", "release").unlink(missing_ok=True)
+    for file_name in ["build.yml", "deploy.yml"]:
+        Path(".github", "workflows", file_name).unlink(missing_ok=True)
+
+
 def remove_utility_files():
     shutil.rmtree("utility")
 
@@ -460,6 +466,9 @@ def main():  # noqa: C901, PLR0912, PLR0915
 
     if "{{ cookiecutter.use_docker }}".lower() == "y" and "{{ cookiecutter.cloud_provider}}" != "AWS":
         remove_aws_dockerfile()
+
+    if "{{ cookiecutter.deploy_ssh }}".lower() == "n":
+        remove_deploy_ssh_files()
 
     if "{{ cookiecutter.use_heroku }}".lower() == "n":
         remove_heroku_files()

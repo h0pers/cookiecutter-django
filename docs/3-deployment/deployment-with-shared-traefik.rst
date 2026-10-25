@@ -16,6 +16,7 @@ What changes
   * ``Host(<domain_name>)`` on the ``websecure`` entrypoint, with certificates from the ``le`` resolver.
   * ``www.<domain_name>`` permanently redirects to ``<domain_name>``, when the domain has a single dot.
   * Middlewares that keep ``X-CSRFToken`` behind the proxy (the same as upstream's Traefik config) and remove the ``Server`` response header.
+  * A ``retry`` middleware that resends a request when no container accepted it, for example one that is stopping.
 
 * ``nginx`` (when ``cloud_provider`` is ``None``) serves ``/media/`` with ``X-Content-Type-Options: nosniff``.
 * ``flower`` (when ``use_celery`` is ``y``) is served on ``flower.<domain_name>``, not on port 5555, so it needs its own DNS record.
