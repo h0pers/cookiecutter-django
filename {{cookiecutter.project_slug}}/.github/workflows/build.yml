@@ -60,7 +60,7 @@ jobs:
           file: {% raw %}${{ matrix.image.dockerfile }}{% endraw %}
           push: true
           provenance: false
-          # Links the package to this repository, which gives GITHUB_TOKEN access for pulls and cleanup
+          # Links the package to this repository, so it inherits the repository's access and its workflows can manage it
           labels: org.opencontainers.image.source={% raw %}${{ github.server_url }}/${{ github.repository }}{% endraw %}
           tags: |
             {% raw %}${{ steps.image.outputs.name }}:sha-${{ github.event.workflow_run.head_sha }}{% endraw %}
