@@ -51,12 +51,23 @@ jobs:
         env:
           ENVS_DJANGO: {% raw %}${{ secrets.ENVS_PRODUCTION_DJANGO }}{% endraw %}
           ENVS_POSTGRES: {% raw %}${{ secrets.ENVS_PRODUCTION_POSTGRES }}{% endraw %}
+          {%- if cookiecutter.postgres_backup == 'WAL-G' %}
+          ENVS_WALG: {% raw %}${{ secrets.ENVS_PRODUCTION_WALG }}{% endraw %}
+          {%- endif %}
         run: |
           : "${ENVS_DJANGO:?Set the ENVS_PRODUCTION_DJANGO secret}"
           : "${ENVS_POSTGRES:?Set the ENVS_PRODUCTION_POSTGRES secret}"
           mkdir -p .envs/.production
           printf '%s\n' "$ENVS_DJANGO" > .envs/.production/.django
           printf '%s\n' "$ENVS_POSTGRES" > .envs/.production/.postgres
+          {%- if cookiecutter.postgres_backup == 'WAL-G' %}
+          # Optional: without it, WAL-G keeps backups in a volume on the server
+          printf '%s\n' "${ENVS_WALG:-}" > .envs/.production/.walg
+          if grep -q '^WALG_S3_PREFIX=.' .envs/.production/.walg && ! grep -q '^WALG_LIBSODIUM_KEY=.' .envs/.production/.walg; then
+            echo "ENVS_PRODUCTION_WALG sets WALG_S3_PREFIX without WALG_LIBSODIUM_KEY: backups would be uploaded unencrypted"
+            exit 1
+          fi
+          {%- endif %}
           # Read by docker compose on the server to pick the images
           printf 'IMAGE_PREFIX=ghcr.io/%s\nIMAGE_TAG=%s\n' "${GITHUB_REPOSITORY,,}" "$TAG" > .env
 
@@ -66,7 +77,7 @@ jobs:
           host: {% raw %}${{ secrets.VPS_HOST }}{% endraw %}
           username: {% raw %}${{ secrets.VPS_USER }}{% endraw %}
           key: {% raw %}${{ secrets.SSH_PRIVATE_KEY }}{% endraw %}
-          source: .env,.envs/.production/.django,.envs/.production/.postgres,docker-compose.production.yml
+          source: .env,.envs/.production/.django,.envs/.production/.postgres{% if cookiecutter.postgres_backup == 'WAL-G' %},.envs/.production/.walg{% endif %},docker-compose.production.yml
           target: {% raw %}${{ github.event.repository.name }}{% endraw %}
 
       - name: Release on the server
@@ -83,7 +94,7 @@ jobs:
           script: |
             set -euo pipefail
             cd "$HOME/$APP_DIR"
-            chmod 600 .env .envs/.production/.django .envs/.production/.postgres
+            chmod 600 .env .envs/.production/.django .envs/.production/.postgres{% if cookiecutter.postgres_backup == 'WAL-G' %} .envs/.production/.walg{% endif %}
             export COMPOSE_FILE=docker-compose.production.yml
 
             echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
@@ -93,6 +104,10 @@ jobs:
             # Start supporting services if they aren't running, but don't restart them on every deploy.
             # Apply changes to them by hand: docker compose up -d <service>
             docker compose up -d --no-build --no-deps --no-recreate postgres redis{% if cookiecutter.cloud_provider == 'None' %} nginx{% endif %}
+            {%- if cookiecutter.postgres_backup == 'WAL-G' %}
+            # Without --no-deps, so it waits for postgres to be healthy before the first backup
+            docker compose up -d --no-build --no-recreate postgres-backup
+            {%- endif %}
             # Migrations run once here, before any new django container takes traffic
             docker compose run --rm --no-deps django /release
             docker rollout -f docker-compose.production.yml --timeout 120 django

@@ -85,6 +85,12 @@ def remove_deploy_ssh_files():
         Path(".github", "workflows", file_name).unlink(missing_ok=True)
 
 
+def remove_walg_files():
+    # compose/ is already gone without Docker, the env file isn't
+    shutil.rmtree(Path("compose", "production", "postgres", "walg"), ignore_errors=True)
+    Path(".envs", ".production", ".walg").unlink(missing_ok=True)
+
+
 def remove_utility_files():
     shutil.rmtree("utility")
 
@@ -466,6 +472,9 @@ def main():  # noqa: C901, PLR0912, PLR0915
 
     if "{{ cookiecutter.use_docker }}".lower() == "y" and "{{ cookiecutter.cloud_provider}}" != "AWS":
         remove_aws_dockerfile()
+
+    if "{{ cookiecutter.use_docker }}".lower() == "n" or "{{ cookiecutter.postgres_backup }}" != "WAL-G":
+        remove_walg_files()
 
     if "{{ cookiecutter.deploy_ssh }}".lower() == "n":
         remove_deploy_ssh_files()

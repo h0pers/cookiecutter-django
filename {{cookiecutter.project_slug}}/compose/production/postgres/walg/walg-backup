@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+
+### Take a WAL-G base backup and keep the last 4 full ones.
+###
+### Usage:
+###     $ docker compose -f docker-compose.production.yml exec postgres-backup walg-backup
+
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+
+# WAL-G connects to the server with the libpq variables
+export PGHOST="${POSTGRES_HOST}" PGPORT="${POSTGRES_PORT}" PGUSER="${POSTGRES_USER}" \
+    PGPASSWORD="${POSTGRES_PASSWORD}" PGDATABASE="${POSTGRES_DB}"
+
+wal-g backup-push "${PGDATA}"
+wal-g delete retain FULL 4 --confirm
