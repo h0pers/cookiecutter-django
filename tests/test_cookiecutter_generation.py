@@ -143,6 +143,23 @@ SUPPORTED_COMBINATIONS = [
         "use_whitenoise": "y",
     },
     {"use_external_traefik": "y", "use_docker": "y", "cloud_provider": "AWS", "domain_name": "app.example.com"},
+    {
+        "deploy_ssh": "y",
+        "ci_tool": "Github",
+        "use_docker": "y",
+        "use_external_traefik": "y",
+        "use_celery": "y",
+        "cloud_provider": "None",
+        "use_whitenoise": "y",
+    },
+    {
+        "deploy_ssh": "y",
+        "ci_tool": "Github",
+        "use_docker": "y",
+        "use_external_traefik": "y",
+        "cloud_provider": "AWS",
+        "use_async": "y",
+    },
     {"keep_local_envs_in_vcs": "y"},
     {"keep_local_envs_in_vcs": "n"},
     {"debug": "y"},
@@ -155,6 +172,8 @@ UNSUPPORTED_COMBINATIONS = [
     {"cloud_provider": "Azure", "mail_service": "Amazon SES"},
     {"cloud_provider": "None", "mail_service": "Amazon SES"},
     {"use_external_traefik": "y", "use_docker": "n"},
+    {"deploy_ssh": "y", "ci_tool": "None", "use_docker": "y", "use_external_traefik": "y"},
+    {"deploy_ssh": "y", "ci_tool": "Github", "use_docker": "y", "use_external_traefik": "n"},
 ]
 
 
@@ -366,6 +385,26 @@ def test_github_invokes_linter_and_pytest(cookies, context, use_docker, expected
             assert expected_test_script_present
         except yaml.YAMLError as e:
             pytest.fail(e)
+
+
+@pytest.mark.parametrize("deploy_ssh", ["y", "n"])
+def test_deploy_ssh_files(cookies, context, deploy_ssh):
+    context.update({"ci_tool": "Github", "use_docker": "y", "use_external_traefik": "y", "deploy_ssh": deploy_ssh})
+    result = cookies.bake(extra_context=context)
+    assert result.exit_code == 0
+
+    workflows = result.project_path / ".github" / "workflows"
+    deploy_files = [
+        workflows / "build.yml",
+        workflows / "deploy.yml",
+        result.project_path / "compose/production/django/release",
+    ]
+    assert all(path.exists() is (deploy_ssh == "y") for path in deploy_files)
+    if deploy_ssh == "y":
+        build = yaml.safe_load((workflows / "build.yml").read_text())
+        assert build["jobs"]["deploy"]["uses"] == "./.github/workflows/deploy.yml"
+        compose = yaml.safe_load((result.project_path / "docker-compose.production.yml").read_text())
+        assert compose["services"]["django"]["image"] == "${IMAGE_PREFIX:-my_test_project}-django:${IMAGE_TAG:-latest}"
 
 
 @pytest.mark.parametrize("slug", ["project slug", "Project_Slug"])

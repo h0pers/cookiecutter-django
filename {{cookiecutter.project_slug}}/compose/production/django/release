@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# One-off steps for a deploy. Runs once per release, not in every replica like /start.
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+
+python /app/manage.py migrate --noinput
+
+if [ -n "${DJANGO_SUPERUSER_PASSWORD:-}" ]; then
+  # Exits 1 when a superuser exists, so createsuperuser only runs on the first deploy
+  if python /app/manage.py shell -c "import sys; from django.contrib.auth import get_user_model; sys.exit(get_user_model().objects.filter(is_superuser=True).exists())"; then
+    python /app/manage.py createsuperuser --noinput
+  fi
+fi

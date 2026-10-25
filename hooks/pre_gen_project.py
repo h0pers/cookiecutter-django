@@ -34,3 +34,10 @@ if "{{ cookiecutter.mail_service }}" == "Amazon SES" and "{{ cookiecutter.cloud_
 if "{{ cookiecutter.use_external_traefik }}".lower() == "y" and "{{ cookiecutter.use_docker }}".lower() == "n":
     print("An external Traefik routes Docker containers, so it requires use_docker=y.")
     sys.exit(1)
+
+if "{{ cookiecutter.deploy_ssh }}".lower() == "y" and (
+    "{{ cookiecutter.ci_tool }}" != "Github" or "{{ cookiecutter.use_external_traefik }}".lower() == "n"
+):
+    # Zero-downtime rollouts need a proxy that discovers containers, which the shared Traefik does
+    print("deploy_ssh runs in GitHub Actions behind a shared Traefik: use ci_tool=Github and use_external_traefik=y.")
+    sys.exit(1)

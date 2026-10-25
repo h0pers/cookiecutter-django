@@ -73,6 +73,13 @@ RUN chmod +x /entrypoint
 COPY --chown=django:django ./compose/production/django/start /start
 RUN sed -i 's/\r$//g' /start
 RUN chmod +x /start
+{%- if cookiecutter.deploy_ssh == 'y' %}
+
+
+COPY --chown=django:django ./compose/production/django/release /release
+RUN sed -i 's/\r$//g' /release
+RUN chmod +x /release
+{%- endif %}
 
 
 {%- if cookiecutter.use_celery == "y" %}

@@ -1,0 +1,104 @@
+name: Build
+
+# Build production images after CI passes on main, push them to GHCR and deploy them
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: ['main']
+
+permissions: {}
+
+jobs:
+  build:
+    # workflow_run also fires for pull requests whose head branch is called main
+    if: {% raw %}${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}{% endraw %}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        image:
+          - name: django
+            dockerfile: compose/production/django/Dockerfile
+          - name: postgres
+            dockerfile: compose/production/postgres/Dockerfile
+          {%- if cookiecutter.cloud_provider == 'None' %}
+          - name: nginx
+            dockerfile: compose/production/nginx/Dockerfile
+          {%- endif %}
+          {%- if cookiecutter.cloud_provider == 'AWS' %}
+          - name: awscli
+            dockerfile: compose/production/aws/Dockerfile
+          {%- endif %}
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v7
+        with:
+          ref: {% raw %}${{ github.event.workflow_run.head_sha }}{% endraw %}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: {% raw %}${{ github.actor }}{% endraw %}
+          password: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+
+      # GHCR image names must be lowercase, GitHub repository names don't have to be
+      - name: Image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}-{% raw %}${{ matrix.image.name }}{% endraw %}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: {% raw %}${{ matrix.image.dockerfile }}{% endraw %}
+          push: true
+          provenance: false
+          # Links the package to this repository, which gives GITHUB_TOKEN access for pulls and cleanup
+          labels: org.opencontainers.image.source={% raw %}${{ github.server_url }}/${{ github.repository }}{% endraw %}
+          tags: |
+            {% raw %}${{ steps.image.outputs.name }}:sha-${{ github.event.workflow_run.head_sha }}{% endraw %}
+            {% raw %}${{ steps.image.outputs.name }}{% endraw %}:latest
+          cache-from: type=registry,ref={% raw %}${{ steps.image.outputs.name }}{% endraw %}:buildcache
+          cache-to: type=registry,ref={% raw %}${{ steps.image.outputs.name }}{% endraw %}:buildcache,mode=max
+
+  deploy:
+    needs: build
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      tag: sha-{% raw %}${{ github.event.workflow_run.head_sha }}{% endraw %}
+    secrets: inherit
+
+  cleanup:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Package names
+        id: packages
+        run: |
+          repo="${GITHUB_REPOSITORY#*/}"
+          repo="${repo,,}"
+          echo "names=${repo}-django ${repo}-postgres{% if cookiecutter.cloud_provider == 'None' %} ${repo}-nginx{% endif %}{% if cookiecutter.cloud_provider == 'AWS' %} ${repo}-awscli{% endif %}" >> "$GITHUB_OUTPUT"
+
+      # Keeps the newest tagged versions for rollbacks (one of them is buildcache) and deletes the rest,
+      # untagged ones included
+      - name: Delete old images
+        uses: snok/container-retention-policy@v3.1.0
+        with:
+          account: {% raw %}${{ github.event.repository.owner.type == 'Organization' && github.repository_owner || 'user' }}{% endraw %}
+          token: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+          image-names: {% raw %}${{ steps.packages.outputs.names }}{% endraw %}
+          tag-selection: both
+          keep-n-most-recent: 10
+          cut-off: 1h

@@ -1,3 +1,10 @@
+{%- macro image(name, ghcr_name=none) -%}
+{%- if cookiecutter.deploy_ssh == 'y' -%}
+${IMAGE_PREFIX:-{{ cookiecutter.project_slug }}}-{{ ghcr_name or name }}:${IMAGE_TAG:-latest}
+{%- else -%}
+{{ cookiecutter.project_slug }}_production_{{ name }}
+{%- endif -%}
+{%- endmacro -%}
 volumes:
   production_postgres_data: {}
   production_postgres_data_backups: {}
@@ -17,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
-    image: {{ cookiecutter.project_slug }}_production_django
+    image: {{ image('django') }}
     {%- if cookiecutter.cloud_provider == 'None' %}
     volumes:
       - production_django_media:/app/{{ cookiecutter.project_slug }}/media
@@ -29,6 +36,20 @@ services:
       - ./.envs/.production/.django
       - ./.envs/.production/.postgres
     command: /start
+    {%- if cookiecutter.deploy_ssh == 'y' %}
+    # docker rollout waits for this before it stops the old container. It also fails once /tmp/drain
+    # exists, so Traefik stops sending requests to a container that is about to stop.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, sys, urllib.request as r; os.path.exists('/tmp/drain') and sys.exit(1); r.urlopen(r.Request('http://127.0.0.1:5000/healthz/', headers={'Host': '{{ cookiecutter.domain_name }}', 'X-Forwarded-Proto': 'https'}), timeout=5)"
+      interval: 5s
+      timeout: 5s
+      retries: 2
+      start_period: 30s
+    {%- endif %}
     {%- if cookiecutter.use_external_traefik == 'y' %}
     networks:
       - default
@@ -39,13 +60,20 @@ services:
       - traefik.http.routers.{{ cookiecutter.project_slug }}.rule=Host(`{{ cookiecutter.domain_name }}`)
       - traefik.http.routers.{{ cookiecutter.project_slug }}.entrypoints=websecure
       - traefik.http.routers.{{ cookiecutter.project_slug }}.tls.certresolver=le
-      - traefik.http.routers.{{ cookiecutter.project_slug }}.middlewares={{ cookiecutter.project_slug }}-csrf,{{ cookiecutter.project_slug }}-no-server
+      - traefik.http.routers.{{ cookiecutter.project_slug }}.middlewares={{ cookiecutter.project_slug }}-csrf,{{ cookiecutter.project_slug }}-no-server,{{ cookiecutter.project_slug }}-retry
       - traefik.http.routers.{{ cookiecutter.project_slug }}.service={{ cookiecutter.project_slug }}-django
       - traefik.http.services.{{ cookiecutter.project_slug }}-django.loadbalancer.server.port=5000
       # https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
       - traefik.http.middlewares.{{ cookiecutter.project_slug }}-csrf.headers.hostsProxyHeaders=X-CSRFToken
       # An empty value removes the header, so the response doesn't reveal the server software
       - traefik.http.middlewares.{{ cookiecutter.project_slug }}-no-server.headers.customResponseHeaders.Server=
+      # Resends a request only when no container accepted it, e.g. one stopping during a rollout
+      - traefik.http.middlewares.{{ cookiecutter.project_slug }}-retry.retry.attempts=3
+      - traefik.http.middlewares.{{ cookiecutter.project_slug }}-retry.retry.initialInterval=100ms
+      {%- if cookiecutter.deploy_ssh == 'y' %}
+      # Longer than interval x retries above, so the container is unhealthy before it's stopped
+      - docker-rollout.pre-stop-hook=touch /tmp/drain && sleep 15
+      {%- endif %}
       {%- if cookiecutter.domain_name.count('.') == 1 %}
       - traefik.http.routers.{{ cookiecutter.project_slug }}-www.rule=Host(`www.{{ cookiecutter.domain_name }}`)
       - traefik.http.routers.{{ cookiecutter.project_slug }}-www.entrypoints=websecure
@@ -62,7 +90,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
-    image: {{ cookiecutter.project_slug }}_production_postgres
+    image: {{ image('postgres') }}
     volumes:
       {%- if cookiecutter.postgresql_version|int >= 18 %}
       - production_postgres_data:/var/lib/postgresql/{{ cookiecutter.postgresql_version }}/docker
@@ -103,8 +131,12 @@ services:
 
   celeryworker:
     <<: *django
-    image: {{ cookiecutter.project_slug }}_production_celeryworker
+    image: {{ image('celeryworker', 'django') }}
     command: /start-celeryworker
+    {%- if cookiecutter.deploy_ssh == 'y' %}
+    healthcheck:
+      disable: true
+    {%- endif %}
     {%- if cookiecutter.use_external_traefik == 'y' %}
     networks:
       - default
@@ -113,8 +145,12 @@ services:
 
   celerybeat:
     <<: *django
-    image: {{ cookiecutter.project_slug }}_production_celerybeat
+    image: {{ image('celerybeat', 'django') }}
     command: /start-celerybeat
+    {%- if cookiecutter.deploy_ssh == 'y' %}
+    healthcheck:
+      disable: true
+    {%- endif %}
     {%- if cookiecutter.use_external_traefik == 'y' %}
     networks:
       - default
@@ -123,8 +159,12 @@ services:
 
   flower:
     <<: *django
-    image: {{ cookiecutter.project_slug }}_production_flower
+    image: {{ image('flower', 'django') }}
     command: /start-flower
+    {%- if cookiecutter.deploy_ssh == 'y' %}
+    healthcheck:
+      disable: true
+    {%- endif %}
     {%- if cookiecutter.use_external_traefik == 'y' %}
     labels:
       - traefik.enable=true
@@ -143,6 +183,9 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/aws/Dockerfile
+    {%- if cookiecutter.deploy_ssh == 'y' %}
+    image: {{ image('awscli') }}
+    {%- endif %}
     env_file:
       - ./.envs/.production/.django
     volumes:
@@ -154,7 +197,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/nginx/Dockerfile
-    image: {{ cookiecutter.project_slug }}_production_nginx
+    image: {{ image('nginx') }}
     depends_on:
       - django
     volumes:
