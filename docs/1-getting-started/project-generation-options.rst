@@ -112,6 +112,7 @@ frontend_pipeline:
     2. `Django Compressor`_
     3. `Gulp`_
     4. `Webpack`_
+    5. Vite + Vue: a Vue 3 + TypeScript app built with Vite_, see :ref:`vite-vue`
 
 Both Gulp and Webpack support Bootstrap recompilation with real-time variables alteration.
 
@@ -184,6 +185,7 @@ debug:
 
 .. _Gulp: https://github.com/gulpjs/gulp
 .. _Webpack: https://webpack.js.org
+.. _Vite: https://vite.dev
 
 .. _AWS: https://aws.amazon.com/s3/
 .. _GCP: https://cloud.google.com/storage/

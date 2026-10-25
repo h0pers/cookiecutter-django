@@ -7,6 +7,15 @@ COPY ./package.json ./package-lock.json ${APP_HOME}
 RUN npm ci && npm cache clean --force
 COPY . ${APP_HOME}
 RUN npm run build
+{%- elif cookiecutter.frontend_pipeline == 'Vite + Vue' -%}
+FROM docker.io/node:26.5-bookworm-slim AS client-builder
+
+WORKDIR /app/frontend
+COPY ./frontend/package.json ./frontend/package-lock.json ./
+RUN npm ci && npm cache clean --force
+COPY ./frontend ./
+# Type-checks, then builds into /app/{{ cookiecutter.project_slug }}/static/dist
+RUN npm run build
 {%- endif %}
 # define an alias for the specific python version used in this file.
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS python-build-stage
@@ -34,6 +43,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY --from=client-builder ${APP_HOME} ${APP_HOME}
 {% else %}
 COPY . ${APP_HOME}
+{%- endif %}
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+# Only the built files: production needs no Node runtime
+COPY --from=client-builder /app/{{ cookiecutter.project_slug }}/static/dist ${APP_HOME}/{{ cookiecutter.project_slug }}/static/dist
 {%- endif %}
 
 RUN --mount=type=cache,target=/root/.cache/uv \

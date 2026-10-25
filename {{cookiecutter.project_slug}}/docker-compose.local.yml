@@ -119,6 +119,26 @@ services:
     command: /start-flower
 
   {%- endif %}
+  {%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+
+  node:
+    build:
+      context: .
+      dockerfile: ./compose/local/node/Dockerfile
+    image: {{ cookiecutter.project_slug }}_local_node
+    container_name: {{ cookiecutter.project_slug }}_local_node
+    volumes:
+      - .:/app:z
+      # Keep the image's node_modules instead of the host's
+      - /app/frontend/node_modules
+    environment:
+      # See server.watch in frontend/vite.config.ts; set to 'false' where file events reach the container
+      WATCH_POLLING: 'true'
+    # Listen on all interfaces so the browser reaches the dev server through the published port
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - '5173:5173'
+  {%- endif %}
   {%- if cookiecutter.frontend_pipeline in ['Gulp', 'Webpack'] %}
 
   node:

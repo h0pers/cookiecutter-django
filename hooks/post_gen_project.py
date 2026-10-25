@@ -91,6 +91,12 @@ def remove_walg_files():
     Path(".envs", ".production", ".walg").unlink(missing_ok=True)
 
 
+def remove_vite_files():
+    shutil.rmtree("frontend")
+    Path("{{ cookiecutter.project_slug }}", "templates", "spa.html").unlink()
+    shutil.rmtree(Path("{{ cookiecutter.project_slug }}", "tests"))
+
+
 def remove_utility_files():
     shutil.rmtree("utility")
 
@@ -505,6 +511,13 @@ def main():  # noqa: C901, PLR0912, PLR0915
         remove_prettier_pre_commit()
         if "{{ cookiecutter.use_docker }}".lower() == "y":
             remove_node_dockerfile()
+    elif "{{ cookiecutter.frontend_pipeline }}" == "Vite + Vue":
+        # The Vue app lives in frontend/ with its own package.json and Prettier
+        remove_gulp_files()
+        remove_webpack_files()
+        remove_sass_files()
+        remove_packagejson_file()
+        remove_prettier_pre_commit()
     else:
         remove_project_css()
         handle_js_runner(
@@ -512,6 +525,9 @@ def main():  # noqa: C901, PLR0912, PLR0915
             use_docker=("{{ cookiecutter.use_docker }}".lower() == "y"),
             use_async=("{{ cookiecutter.use_async }}".lower() == "y"),
         )
+
+    if "{{ cookiecutter.frontend_pipeline }}" != "Vite + Vue":
+        remove_vite_files()
 
     if "{{ cookiecutter.cloud_provider }}" == "None" and "{{ cookiecutter.use_docker }}".lower() == "n":
         print(

@@ -131,5 +131,12 @@ CELERY_TASK_EAGER_PROPAGATES = True
 WEBPACK_LOADER["DEFAULT"]["CACHE"] = not DEBUG
 
 {%- endif %}
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+# django-vite
+# ------------------------------------------------------------------------------
+# Load assets from the Vite dev server, with hot module replacement
+DJANGO_VITE["default"]["dev_mode"] = env.bool("DJANGO_VITE_DEV_MODE", default=True)  # noqa: F405
+
+{%- endif %}
 # Your stuff...
 # ------------------------------------------------------------------------------

@@ -108,6 +108,9 @@ THIRD_PARTY_APPS = [
 {%- if cookiecutter.frontend_pipeline == 'Webpack' %}
     "webpack_loader",
 {%- endif %}
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+    "django_vite",
+{%- endif %}
 ]
 
 LOCAL_APPS = [
@@ -404,6 +407,21 @@ WEBPACK_LOADER = {
         "POLL_INTERVAL": 0.1,
         "IGNORE": [r".+\.hot-update.js", r".+\.map"],
         "BUNDLE_DIR_NAME": "webpack_bundles/",
+    },
+}
+
+{%- endif %}
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+# django-vite
+# ------------------------------------------------------------------------------
+# https://github.com/MrBin99/django-vite
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": False,
+        # Vite builds into static/dist, so django-vite looks for files under STATIC_URL + "dist/"
+        "static_url_prefix": "dist",
+        # Read from the build output: collectstatic skips the hidden .vite directory
+        "manifest_path": APPS_DIR / "static" / "dist" / ".vite" / "manifest.json",
     },
 }
 
