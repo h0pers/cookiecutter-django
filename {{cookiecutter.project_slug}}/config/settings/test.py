@@ -41,5 +41,12 @@ MEDIA_URL = "http://media.testserver/"
 WEBPACK_LOADER["DEFAULT"]["LOADER_CLASS"] = "webpack_loader.loaders.FakeWebpackLoader"  # noqa: F405
 
 {%- endif %}
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+# django-vite
+# ------------------------------------------------------------------------------
+# Dev mode renders tags without reading a manifest, so tests don't need a Vite build
+DJANGO_VITE["default"]["dev_mode"] = True  # noqa: F405
+
+{%- endif %}
 # Your stuff...
 # ------------------------------------------------------------------------------

@@ -25,7 +25,7 @@
   <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
   {% block css %}
   {%- endraw %}
-  {%- if cookiecutter.frontend_pipeline in ['None', 'Django Compressor'] %}
+  {%- if cookiecutter.frontend_pipeline in ['None', 'Django Compressor', 'Vite + Vue'] %}
     {%- raw %}
     <!-- Latest compiled and minified Bootstrap CSS -->
     <link rel="stylesheet"
@@ -39,7 +39,7 @@
 <!-- Your stuff: Third-party CSS libraries go here -->
 <!-- This file stores project-specific CSS -->
 {%- endraw %}
-{% if cookiecutter.frontend_pipeline == 'None' %}
+{% if cookiecutter.frontend_pipeline in ['None', 'Vite + Vue'] %}
   {% raw %}
   <link href="{% static 'css/project.css' %}" rel="stylesheet" />
 {%- endraw %}
@@ -89,7 +89,7 @@
 {% raw %}
 <!-- place project specific Javascript in this file -->
 {%- endraw %}
-{% if cookiecutter.frontend_pipeline == 'None' %}
+{% if cookiecutter.frontend_pipeline in ['None', 'Vite + Vue'] %}
   {% raw %}
   <script defer src="{% static 'js/project.js' %}"></script>
 {%- endraw %}

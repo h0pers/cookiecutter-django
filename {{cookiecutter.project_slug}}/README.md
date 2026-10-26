@@ -47,6 +47,24 @@ To run the tests, check your test coverage, and generate an HTML coverage report
 ### Live reloading and Sass CSS compilation
 
 Moved to [Live reloading and SASS compilation](https://cookiecutter-django.readthedocs.io/en/latest/2-local-development/developing-locally.html#using-webpack-or-gulp).
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+
+### Vue app
+
+The Vue 3 + TypeScript app lives in `frontend/` and is served by Django at `/app/`.
+{%- if cookiecutter.use_docker == 'y' %}
+The `node` service runs the Vite dev server with hot reloading; open the app through Django at http://localhost:8000/app/.
+{%- else %}
+Run the Vite dev server next to Django, then open http://localhost:8000/app/:
+
+    cd frontend
+    npm install
+    npm run dev
+{%- endif %}
+
+In `frontend/`: `npm run lint`, `npm run format`, and `npm run build`, which type-checks and builds into `{{ cookiecutter.project_slug }}/static/dist`.
+Add shadcn-vue components with `npx shadcn-vue@latest add <component>`.
+{%- endif %}
 
 {%- if cookiecutter.use_celery == "y" %}
 

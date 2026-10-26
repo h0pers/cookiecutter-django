@@ -20,6 +20,7 @@ Powered by Cookiecutter_, Cookiecutter Django is a project template for jumpstar
 
    2-local-development/developing-locally
    2-local-development/developing-locally-docker
+   2-local-development/vite-vue
 
 .. toctree::
    :maxdepth: 2

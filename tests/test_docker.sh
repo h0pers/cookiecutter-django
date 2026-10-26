@@ -48,6 +48,13 @@ docker compose -f docker-compose.local.yml run --rm django python manage.py make
 # Test support for translations
 docker compose -f docker-compose.local.yml run --rm django python manage.py makemessages --all
 
+# The Vue app keeps its package.json in frontend/. Build it before the deploy check,
+# which warns when django-vite has no manifest; the build also type-checks.
+if [ -f "frontend/package.json" ]
+then
+    docker compose -f docker-compose.local.yml run --rm node npm run build
+fi
+
 # Make sure the check doesn't raise any warnings
 docker compose -f docker-compose.local.yml run --rm \
   -e DJANGO_SECRET_KEY="$(openssl rand -base64 64)" \

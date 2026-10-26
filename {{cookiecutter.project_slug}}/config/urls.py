@@ -9,6 +9,9 @@ from django.http import HttpResponse
 {%- endif %}
 from django.urls import include
 from django.urls import path
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+from django.urls import re_path
+{%- endif %}
 from django.views import defaults as default_views
 from django.views.generic import TemplateView
 {%- if cookiecutter.rest_api == 'DRF' %}
@@ -32,6 +35,10 @@ urlpatterns = [
     # User management
     path("users/", include("{{ cookiecutter.project_slug }}.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
+    {%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+    # The Vue app shell; Vue Router handles everything under /app/
+    re_path(r"^app/", TemplateView.as_view(template_name="spa.html"), name="spa"),
+    {%- endif %}
     {%- if cookiecutter.deploy_ssh == 'y' %}
     # Container healthcheck: answers without touching the database
     path("healthz/", lambda request: HttpResponse("ok"), name="healthz"),

@@ -118,6 +118,9 @@ SUPPORTED_COMBINATIONS = [
     {"frontend_pipeline": "Django Compressor"},
     {"frontend_pipeline": "Gulp"},
     {"frontend_pipeline": "Webpack"},
+    {"frontend_pipeline": "Vite + Vue"},
+    {"frontend_pipeline": "Vite + Vue", "use_docker": "y", "ci_tool": "Github"},
+    {"frontend_pipeline": "Vite + Vue", "use_docker": "y", "cloud_provider": "AWS", "use_async": "y"},
     {"use_celery": "y"},
     {"use_celery": "n"},
     {"mail_catcher": "None"},
@@ -477,6 +480,8 @@ def test_pycharm_docs_removed(cookies, context, editor, pycharm_docs_exist):
         ("Django Compressor", False),
         ("Gulp", True),
         ("Webpack", True),
+        # The Vue app keeps its own package.json in frontend/
+        ("Vite + Vue", False),
     ],
 )
 def test_package_jsons_removed(cookies, context, frontend_pipeline, package_jsons_exist):
@@ -488,6 +493,15 @@ def test_package_jsons_removed(cookies, context, frontend_pipeline, package_json
 
     has_package_jsons = package_json.exists() or package_lock_json.exists()
     assert has_package_jsons is package_jsons_exist
+    vite_files = [
+        result.project_path / "frontend" / "package-lock.json",
+        result.project_path / "my_test_project" / "tests" / "test_spa.py",
+    ]
+    assert all(path.exists() is (frontend_pipeline == "Vite + Vue") for path in vite_files)
+    if frontend_pipeline == "Vite + Vue":
+        # Copied without rendering: Vue's own {{ }} syntax must survive
+        home_view = result.project_path / "frontend" / "src" / "views" / "HomeView.vue"
+        assert "{{ counter.count }}" in home_view.read_text()
 
 
 def test_trim_domain_email(cookies, context):

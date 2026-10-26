@@ -1,0 +1,16 @@
+{% raw %}{% load static django_vite %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% endraw %}{{ cookiecutter.project_name }}{% raw %}</title>
+    <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
+    {% vite_hmr_client %}
+    {% vite_asset 'src/main.ts' %}
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>{% endraw %}

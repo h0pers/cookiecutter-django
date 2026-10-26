@@ -12,3 +12,6 @@ venv
 .envs/
 .venv/
 **/__pycache__/
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+frontend/node_modules/
+{%- endif %}

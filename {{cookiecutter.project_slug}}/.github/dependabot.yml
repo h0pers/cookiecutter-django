@@ -93,3 +93,18 @@ updates:
           - 'patch'
 
 {%- endif %}
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+
+  # Enable version updates for the Vue app's npm packages
+  - package-ecosystem: 'npm'
+    directory: '/frontend'
+    # Every weekday
+    schedule:
+      interval: 'daily'
+    groups:
+      javascript:
+        update-types:
+          - 'minor'
+          - 'patch'
+
+{%- endif %}
