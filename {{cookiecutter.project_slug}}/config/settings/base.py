@@ -382,6 +382,10 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    {%- if cookiecutter.use_ai_agents == 'y' %}
+    # Renders ApplicationError from services as 400 {"message": ..., "extra": {...}}
+    "EXCEPTION_HANDLER": "{{ cookiecutter.project_slug }}.core.api.exception_handler",
+    {%- endif %}
 }
 
 # django-cors-headers - https://github.com/adamchainz/django-cors-headers#setup

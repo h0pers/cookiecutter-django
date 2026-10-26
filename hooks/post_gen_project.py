@@ -97,6 +97,26 @@ def remove_vite_files():
     shutil.rmtree(Path("{{ cookiecutter.project_slug }}", "tests"))
 
 
+def remove_ai_agent_files():
+    for file_name in ["AGENTS.md", "CLAUDE.md", ".mcp.json"]:
+        Path(file_name).unlink(missing_ok=True)
+    shutil.rmtree(".claude")
+    shutil.rmtree(Path("{{ cookiecutter.project_slug }}", "core"))
+
+
+def remove_ai_agent_drf_files():
+    Path(".claude", "rules", "api.md").unlink()
+    shutil.rmtree(Path(".claude", "skills", "add-endpoint"))
+    Path("{{ cookiecutter.project_slug }}", "core", "api.py").unlink()
+    shutil.rmtree(Path("{{ cookiecutter.project_slug }}", "core", "tests"))
+
+
+def remove_ai_agent_vite_files():
+    Path(".claude", "rules", "frontend.md").unlink()
+    shutil.rmtree(Path(".claude", "skills", "shadcn-vue"))
+    Path(".mcp.json").unlink()
+
+
 def remove_utility_files():
     shutil.rmtree("utility")
 
@@ -528,6 +548,14 @@ def main():  # noqa: C901, PLR0912, PLR0915
 
     if "{{ cookiecutter.frontend_pipeline }}" != "Vite + Vue":
         remove_vite_files()
+
+    if "{{ cookiecutter.use_ai_agents }}".lower() == "n":
+        remove_ai_agent_files()
+    else:
+        if "{{ cookiecutter.rest_api }}" != "DRF":
+            remove_ai_agent_drf_files()
+        if "{{ cookiecutter.frontend_pipeline }}" != "Vite + Vue":
+            remove_ai_agent_vite_files()
 
     if "{{ cookiecutter.cloud_provider }}" == "None" and "{{ cookiecutter.use_docker }}".lower() == "n":
         print(

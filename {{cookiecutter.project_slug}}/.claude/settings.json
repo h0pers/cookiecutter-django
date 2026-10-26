@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+{%- if cookiecutter.use_docker == 'y' %}
+      "Bash(docker compose -f docker-compose.local.yml run --rm django pytest *)",
+      "Bash(docker compose -f docker-compose.local.yml run --rm django mypy *)",
+      "Bash(docker compose -f docker-compose.local.yml run --rm django python manage.py makemigrations *)",
+      "Bash(docker compose -f docker-compose.local.yml run --rm django python manage.py check *)",
+{%- else %}
+      "Bash(uv run pytest *)",
+      "Bash(uv run mypy *)",
+      "Bash(uv run python manage.py makemigrations *)",
+      "Bash(uv run python manage.py check *)",
+{%- endif %}
+{%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
+      "Bash(npm run lint)",
+      "Bash(npm run format)",
+      "Bash(npm run build)",
+{%- endif %}
+      "Bash(pre-commit run *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --quiet python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect_files.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --quiet python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format_python.py"
+          }
+        ]
+      }
+    ]
+  }
+}
