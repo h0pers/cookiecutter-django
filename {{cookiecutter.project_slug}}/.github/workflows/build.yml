@@ -53,12 +53,13 @@ jobs:
         id: image
         run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}-{% raw %}${{ matrix.image.name }}{% endraw %}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
+      # Loaded locally rather than pushed, so the django image can be checked first
+      - name: Build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: {% raw %}${{ matrix.image.dockerfile }}{% endraw %}
-          push: true
+          load: true
           provenance: false
           # Links the package to this repository, so it inherits the repository's access and its workflows can manage it
           labels: org.opencontainers.image.source={% raw %}${{ github.server_url }}/${{ github.repository }}{% endraw %}
@@ -67,6 +68,48 @@ jobs:
             {% raw %}${{ steps.image.outputs.name }}{% endraw %}:latest
           cache-from: type=registry,ref={% raw %}${{ steps.image.outputs.name }}{% endraw %}:buildcache
           cache-to: type=registry,ref={% raw %}${{ steps.image.outputs.name }}{% endraw %}:buildcache,mode=max
+
+      # The default fail level ignores warnings, so a check without the flag never fails.
+      # Dummy values stand in for secrets: the check reads settings, it doesn't connect anywhere.
+      - name: Check production settings
+        if: {% raw %}${{ matrix.image.name == 'django' }}{% endraw %}
+        env:
+          IMAGE: {% raw %}${{ steps.image.outputs.name }}:sha-${{ github.event.workflow_run.head_sha }}{% endraw %}
+        run: |
+          docker run --rm --entrypoint python \
+            -e DJANGO_SETTINGS_MODULE=config.settings.production \
+            -e DJANGO_SECRET_KEY="$(openssl rand -base64 64)" \
+            -e DJANGO_ADMIN_URL=admin-check/ \
+            -e DATABASE_URL=postgres://check:check@localhost:5432/check \
+            {%- if cookiecutter.cloud_provider == 'AWS' %}
+            -e DJANGO_AWS_ACCESS_KEY_ID=check -e DJANGO_AWS_SECRET_ACCESS_KEY=check -e DJANGO_AWS_STORAGE_BUCKET_NAME=check \
+            {%- elif cookiecutter.cloud_provider == 'GCP' %}
+            -e DJANGO_GCP_STORAGE_BUCKET_NAME=check \
+            {%- elif cookiecutter.cloud_provider == 'Azure' %}
+            -e DJANGO_AZURE_ACCOUNT_KEY=check -e DJANGO_AZURE_ACCOUNT_NAME=check -e DJANGO_AZURE_CONTAINER_NAME=check \
+            {%- endif %}
+            {%- if cookiecutter.mail_service == 'Mailgun' %}
+            -e MAILGUN_API_KEY=check -e MAILGUN_DOMAIN=check \
+            {%- elif cookiecutter.mail_service == 'Mailjet' %}
+            -e MAILJET_API_KEY=check -e MAILJET_SECRET_KEY=check \
+            {%- elif cookiecutter.mail_service == 'Mandrill' %}
+            -e MANDRILL_API_KEY=check \
+            {%- elif cookiecutter.mail_service == 'Postmark' %}
+            -e POSTMARK_SERVER_TOKEN=check \
+            {%- elif cookiecutter.mail_service == 'Sendgrid' %}
+            -e SENDGRID_API_KEY=check \
+            {%- elif cookiecutter.mail_service == 'Brevo' %}
+            -e BREVO_API_KEY=check \
+            {%- elif cookiecutter.mail_service == 'SparkPost' %}
+            -e SPARKPOST_API_KEY=check \
+            {%- endif %}
+            {%- if cookiecutter.use_sentry == 'y' %}
+            -e SENTRY_DSN=https://check@example.com/1 \
+            {%- endif %}
+            "$IMAGE" manage.py check --deploy --fail-level WARNING
+
+      - name: Push
+        run: docker push --all-tags {% raw %}${{ steps.image.outputs.name }}{% endraw %}
 
   deploy:
     needs: build

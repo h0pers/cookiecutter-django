@@ -12,7 +12,11 @@ How it works
 
 ``.github/workflows/build.yml`` runs when the ``CI`` workflow succeeds on a push to ``main``:
 
-1. **build** pushes the production images to ``ghcr.io/<owner>/<repo>-<name>``. The names are ``django``, ``postgres``, ``nginx`` (``cloud_provider=None``) and ``awscli`` (``cloud_provider=AWS``). Each image is tagged ``sha-<full commit sha>`` and ``latest``, with the build cache kept under ``buildcache``.
+1. **build** builds the production images and pushes them to ``ghcr.io/<owner>/<repo>-<name>``. The names are ``django``, ``postgres``, ``nginx`` (``cloud_provider=None``) and ``awscli`` (``cloud_provider=AWS``). Each image is tagged ``sha-<full commit sha>`` and ``latest``, with the build cache kept under ``buildcache``.
+
+   Before the django image is pushed, ``manage.py check --deploy --fail-level WARNING`` runs in it with production settings and dummy secrets. Without ``--fail-level WARNING`` the check only fails on errors, so security warnings would pass unnoticed. If the check fails, nothing is pushed and nothing is deployed.
+
+   .. note:: With ``mail_service=Sendgrid`` the check fails: django-anymail has dropped official SendGrid support and warns ``anymail.W003``. Switch to another provider, or add ``SILENCED_SYSTEM_CHECKS = ["anymail.W003"]`` to ``config/settings/production.py`` if you accept that.
 2. **deploy** calls ``.github/workflows/deploy.yml`` with ``tag=sha-<sha>``.
 3. **cleanup** keeps the 10 newest tagged versions of each image and deletes the rest. One of them is the build cache, so the images of the last 9 commits stay available for rollbacks.
 
