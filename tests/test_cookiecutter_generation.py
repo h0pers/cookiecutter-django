@@ -414,6 +414,13 @@ def test_deploy_ssh_files(cookies, context, deploy_ssh):
     if deploy_ssh == "y":
         build = yaml.safe_load((workflows / "build.yml").read_text())
         assert build["jobs"]["deploy"]["uses"] == "./.github/workflows/deploy.yml"
+        # The settings check runs on the built image before anything is pushed
+        step_names = [step.get("name") for step in build["jobs"]["build"]["steps"]]
+        assert step_names.index("Check production settings") < step_names.index("Push")
+        check = next(
+            step for step in build["jobs"]["build"]["steps"] if step.get("name") == "Check production settings"
+        )
+        assert "check --deploy --fail-level WARNING" in check["run"]
         compose = yaml.safe_load((result.project_path / "docker-compose.production.yml").read_text())
         assert compose["services"]["django"]["image"] == "${IMAGE_PREFIX:-my_test_project}-django:${IMAGE_TAG:-latest}"
 
