@@ -161,6 +161,16 @@ postgres_backup:
        Upstream's pg_dump scripts are kept too.
     2. pg_dump: only upstream's pg_dump scripts, see :doc:`../4-guides/docker-postgres-backups`.
 
+use_ai_agents:
+    Indicates whether the project should include instructions and tooling for AI coding agents (on by default):
+
+    * ``AGENTS.md`` with the stack, commands, layout, conventions and gotchas, and a ``CLAUDE.md`` that imports it
+    * ``.claude/rules/`` for settings, models, services, tests and migrations, plus the API (DRF) and the Vue app (Vite + Vue)
+    * ``.claude/skills/`` to add an app, a service or (with DRF) an endpoint, and the official shadcn-vue skill with its MCP server in ``.mcp.json`` (Vite + Vue)
+    * ``.claude/settings.json`` hooks that block edits to ``.envs/.production/``, lockfiles and committed migrations, and run ruff on edited Python files
+
+    It also adds ``ApplicationError`` in ``<project_slug>/core/exceptions.py`` for the service-layer convention, and with DRF an exception handler that renders it as ``400 {"message": ..., "extra": {...}}``.
+
 keep_local_envs_in_vcs:
     Indicates whether the project’s .envs/.local/ should be kept in VCS (comes in handy when working in teams where local environment reproducibility is strongly encouraged).
 

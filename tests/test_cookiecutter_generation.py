@@ -1,4 +1,5 @@
 import glob  # noqa: EXE002
+import json
 import os
 import re
 import sys
@@ -167,6 +168,9 @@ SUPPORTED_COMBINATIONS = [
     {"postgres_backup": "WAL-G", "use_docker": "y", "postgresql_version": "14"},
     {"postgres_backup": "WAL-G", "use_docker": "n"},
     {"postgres_backup": "pg_dump", "use_docker": "y"},
+    {"use_ai_agents": "n"},
+    {"use_ai_agents": "y", "rest_api": "DRF"},
+    {"use_ai_agents": "y", "rest_api": "Django Ninja", "use_docker": "y"},
     {"keep_local_envs_in_vcs": "y"},
     {"keep_local_envs_in_vcs": "n"},
     {"debug": "y"},
@@ -433,6 +437,40 @@ def test_walg_files(cookies, context, use_docker, postgres_backup, walg_files_ex
         assert (result.project_path / "compose/production/postgres/maintenance/backup").exists()
         compose = yaml.safe_load((result.project_path / "docker-compose.production.yml").read_text())
         assert ("postgres-backup" in compose["services"]) is walg_files_exist
+
+
+@pytest.mark.parametrize(
+    ("use_ai_agents", "rest_api", "frontend_pipeline"),
+    [
+        ("n", "DRF", "Vite + Vue"),
+        ("y", "None", "None"),
+        ("y", "DRF", "None"),
+        ("y", "None", "Vite + Vue"),
+    ],
+)
+def test_ai_agent_files(cookies, context, use_ai_agents, rest_api, frontend_pipeline):
+    context.update(
+        {"use_ai_agents": use_ai_agents, "rest_api": rest_api, "frontend_pipeline": frontend_pipeline},
+    )
+    result = cookies.bake(extra_context=context)
+    assert result.exit_code == 0
+
+    project = result.project_path
+    enabled = use_ai_agents == "y"
+    assert all(
+        (project / path).exists() is enabled
+        for path in ["AGENTS.md", "CLAUDE.md", ".claude/settings.json", "my_test_project/core/exceptions.py"]
+    )
+    drf_files = [".claude/rules/api.md", ".claude/skills/add-endpoint", "my_test_project/core/api.py"]
+    assert all((project / path).exists() is (enabled and rest_api == "DRF") for path in drf_files)
+    vite_files = [".claude/rules/frontend.md", ".claude/skills/shadcn-vue", ".mcp.json"]
+    assert all((project / path).exists() is (enabled and frontend_pipeline == "Vite + Vue") for path in vite_files)
+    if enabled:
+        assert (project / "CLAUDE.md").read_text() == "@AGENTS.md\n"
+        settings = json.loads((project / ".claude" / "settings.json").read_text())
+        assert {"PreToolUse", "PostToolUse"} <= settings["hooks"].keys()
+        # Skill frontmatter must open the file for Claude Code to read it
+        assert (project / ".claude/skills/new-app/SKILL.md").read_text().startswith("---\nname: new-app\n")
 
 
 @pytest.mark.parametrize("slug", ["project slug", "Project_Slug"])
