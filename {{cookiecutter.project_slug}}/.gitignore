@@ -353,4 +353,6 @@ webpack-stats.json
 {%- endif %}
 {%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
 {{ cookiecutter.project_slug }}/static/dist/
+# The Python packaging pattern `lib/` above would also hide the Vue app's helpers
+!frontend/src/lib/
 {%- endif %}
