@@ -48,3 +48,6 @@ class User(AbstractUser):
         {%- else %}
         return reverse("users:detail", kwargs={"username": self.username})
         {%- endif %}
+
+    def get_full_name(self) -> str:
+        return self.name
