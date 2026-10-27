@@ -86,6 +86,10 @@ DJANGO_APPS = [
     # "django.contrib.humanize", # Handy template tags
     "django.contrib.admin",
     "django.forms",
+{%- if cookiecutter.use_wagtail == 'y' %}
+    # Wagtail's search index uses Postgres full-text search fields
+    "django.contrib.postgres",
+{%- endif %}
 ]
 THIRD_PARTY_APPS = [
     "crispy_forms",
@@ -111,10 +115,30 @@ THIRD_PARTY_APPS = [
 {%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
     "django_vite",
 {%- endif %}
+{%- if cookiecutter.use_wagtail == 'y' %}
+    "wagtail.contrib.forms",
+    "wagtail.contrib.redirects",
+    "wagtail.embeds",
+    "wagtail.sites",
+    # Replaces "wagtail.users": its forms expect first_name and last_name
+    "{{ cookiecutter.project_slug }}.users.wagtail_apps.WagtailUsersConfig",
+    "wagtail.snippets",
+    "wagtail.documents",
+    "wagtail.images",
+    "wagtail.search",
+    "wagtail.admin",
+    "wagtail",
+    "modelcluster",
+    "taggit",
+    "django_filters",
+{%- endif %}
 ]
 
 LOCAL_APPS = [
     "{{ cookiecutter.project_slug }}.users",
+{%- if cookiecutter.use_wagtail == 'y' %}
+    "{{ cookiecutter.project_slug }}.cms",
+{%- endif %}
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -178,6 +202,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+{%- if cookiecutter.use_wagtail == 'y' %}
+    "wagtail.contrib.redirects.middleware.RedirectMiddleware",
+{%- endif %}
 ]
 
 # STATIC
@@ -428,6 +455,33 @@ DJANGO_VITE = {
         "manifest_path": APPS_DIR / "static" / "dist" / ".vite" / "manifest.json",
     },
 }
+
+{%- endif %}
+{%- if cookiecutter.use_wagtail == 'y' %}
+# Wagtail
+# ------------------------------------------------------------------------------
+# https://docs.wagtail.org/en/stable/reference/settings.html
+WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="{{ cookiecutter.project_name }}")
+# Used for full URLs in admin notification emails; no /cms/ or trailing slash
+WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default="http://localhost:8000")
+if DJANGO_ADMIN_FORCE_ALLAUTH:
+    WAGTAILADMIN_LOGIN_URL = LOGIN_URL
+# Leaving this out allows any file type, which is unsafe for untrusted editors
+WAGTAILDOCS_EXTENSIONS = [
+    "csv",
+    "docx",
+    "key",
+    "odt",
+    "pdf",
+    "pptx",
+    "rtf",
+    "txt",
+    "xlsx",
+    "zip",
+]
+WAGTAILDOCS_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+# Complex page models can exceed Django's default of 1000 fields in the page editor
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10_000
 
 {%- endif %}
 # Your stuff...

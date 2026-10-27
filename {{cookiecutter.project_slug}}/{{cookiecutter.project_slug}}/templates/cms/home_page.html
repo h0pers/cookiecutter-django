@@ -1,0 +1,12 @@
+{% raw %}{% extends "base.html" %}
+
+{% load wagtailcore_tags %}
+
+{% block title %}
+  {% firstof page.seo_title page.title %}
+{% endblock title %}
+{% block content %}
+  <h1>{{ page.title }}</h1>
+  {{ page.body|richtext }}
+{% endblock content %}
+{%- endraw %}

@@ -227,6 +227,13 @@ ACCOUNT_EMAIL_SUBJECT_PREFIX = EMAIL_SUBJECT_PREFIX
 # ------------------------------------------------------------------------------
 # Django Admin URL regex.
 ADMIN_URL = env("DJANGO_ADMIN_URL")
+{%- if cookiecutter.use_wagtail == 'y' %}
+
+# Wagtail
+# ------------------------------------------------------------------------------
+# https://docs.wagtail.org/en/stable/reference/settings.html#wagtailadmin-base-url
+WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default="https://{{ cookiecutter.domain_name }}")
+{%- endif %}
 
 # Anymail
 # ------------------------------------------------------------------------------

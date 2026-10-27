@@ -18,13 +18,21 @@ from django.views.generic import TemplateView
 from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
-{%- elif cookiecutter.rest_api == 'Django Ninja' %}
+{%- endif %}
+{%- if cookiecutter.use_wagtail == 'y' %}
+from wagtail import urls as wagtail_urls
+from wagtail.admin import urls as wagtailadmin_urls
+from wagtail.documents import urls as wagtaildocs_urls
+{%- endif %}
+{%- if cookiecutter.rest_api == 'Django Ninja' %}
 
 from .api import api
 {%- endif %}
 
 urlpatterns = [
+    {%- if cookiecutter.use_wagtail == 'n' %}
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
+    {%- endif %}
     path(
         "about/",
         TemplateView.as_view(template_name="pages/about.html"),
@@ -35,6 +43,11 @@ urlpatterns = [
     # User management
     path("users/", include("{{ cookiecutter.project_slug }}.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
+    {%- if cookiecutter.use_wagtail == 'y' %}
+    # Wagtail editor and document downloads
+    path("cms/", include(wagtailadmin_urls)),
+    path("documents/", include(wagtaildocs_urls)),
+    {%- endif %}
     {%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
     # The Vue app shell; Vue Router handles everything under /app/
     re_path(r"^app/", TemplateView.as_view(template_name="spa.html"), name="spa"),
@@ -104,3 +117,8 @@ if settings.DEBUG:
             path("__debug__/", include(debug_toolbar.urls)),
             *urlpatterns,
         ]
+{%- if cookiecutter.use_wagtail == 'y' %}
+
+# Wagtail serves every path not matched above, so it must stay last
+urlpatterns += [path("", include(wagtail_urls))]
+{%- endif %}

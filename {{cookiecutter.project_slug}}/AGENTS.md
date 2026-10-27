@@ -17,6 +17,9 @@ Instructions for AI coding agents working in this repository. Human docs live in
 {%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
 - Vue 3 + TypeScript + Vite in `frontend/`, served at `/app/` through django-vite; Tailwind 4 and shadcn-vue (`frontend/components.json`, skill in `.claude/skills/shadcn-vue`, MCP server in `.mcp.json`)
 {%- endif %}
+{%- if cookiecutter.use_wagtail == 'y' %}
+- Wagtail 8 CMS: editor at `/cms/`, page models in `{{ slug }}/cms/`, and Wagtail serves `/` and every path not matched before it
+{%- endif %}
 {%- if cookiecutter.use_docker == 'y' %}
 - Docker Compose for local (`docker-compose.local.yml`) and production (`docker-compose.production.yml`)
 {%- endif %}
@@ -78,7 +81,10 @@ config/
 │   ├── migrations/
 │   └── tests/                 test_services.py, factories.py, ...
 ├── core/                      ApplicationError{% if cookiecutter.rest_api == 'DRF' %} and the API exception handler{% endif %}
-├── users/                     custom User model
+├── users/                     custom User model{% if cookiecutter.use_wagtail == 'y' %}; wagtail_admin.py adapts Wagtail's user forms to it{% endif %}
+{%- if cookiecutter.use_wagtail == 'y' %}
+├── cms/                       Wagtail page models, HomePageService, setup_cms command
+{%- endif %}
 ├── templates/                 Django templates{% if cookiecutter.frontend_pipeline == 'Vite + Vue' %}; spa.html is the Vue app shell{% endif %}
 └── static/
 {%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
@@ -122,6 +128,11 @@ The `.claude/rules/` files hold the details for each area; the skills in `.claud
 {%- endif %}
 {%- if cookiecutter.frontend_pipeline == 'Vite + Vue' %}
 - Tailwind and shadcn-vue only load on `/app/`; the Django-rendered pages use Bootstrap. Tests run django-vite in dev mode, so they don't need a frontend build.
+{%- endif %}
+{%- if cookiecutter.use_wagtail == 'y' %}
+- Wagtail's catch-all `path("", include(wagtail_urls))` must stay last in `config/urls.py`; add new routes above it.
+- Wagtail pages are the exception to "views never touch the ORM": a page's `get_context()` may query the page tree (`self.get_children().live()`); anything else goes through a service. See `.claude/rules/wagtail.md`.
+- A migration creates the HomePage and points the default Site at it. `{{ run }}python manage.py setup_cms` restores them on a database where they were deleted.
 {%- endif %}
 
 ## Don't
