@@ -171,6 +171,11 @@ SUPPORTED_COMBINATIONS = [
     {"use_ai_agents": "n"},
     {"use_ai_agents": "y", "rest_api": "DRF"},
     {"use_ai_agents": "y", "rest_api": "Django Ninja", "use_docker": "y"},
+    {"use_wagtail": "y"},
+    {"use_wagtail": "y", "username_type": "email"},
+    {"use_wagtail": "y", "rest_api": "DRF", "use_ai_agents": "n"},
+    {"use_wagtail": "y", "frontend_pipeline": "Vite + Vue", "use_docker": "y"},
+    {"use_wagtail": "y", "cloud_provider": "AWS", "use_async": "y", "use_docker": "y"},
     {"keep_local_envs_in_vcs": "y"},
     {"keep_local_envs_in_vcs": "n"},
     {"debug": "y"},
@@ -444,6 +449,31 @@ def test_walg_files(cookies, context, use_docker, postgres_backup, walg_files_ex
         assert (result.project_path / "compose/production/postgres/maintenance/backup").exists()
         compose = yaml.safe_load((result.project_path / "docker-compose.production.yml").read_text())
         assert ("postgres-backup" in compose["services"]) is walg_files_exist
+
+
+@pytest.mark.parametrize(
+    ("use_wagtail", "use_ai_agents"),
+    [("n", "y"), ("y", "y"), ("y", "n")],
+)
+def test_wagtail_files(cookies, context, use_wagtail, use_ai_agents):
+    context.update({"use_wagtail": use_wagtail, "use_ai_agents": use_ai_agents})
+    result = cookies.bake(extra_context=context)
+    assert result.exit_code == 0
+
+    project = result.project_path
+    enabled = use_wagtail == "y"
+    wagtail_files = [
+        "my_test_project/cms",
+        "my_test_project/templates/cms/home_page.html",
+        "my_test_project/users/wagtail_apps.py",
+        "my_test_project/users/wagtail_admin.py",
+        "my_test_project/users/tests/test_wagtail.py",
+    ]
+    assert all((project / path).exists() is enabled for path in wagtail_files)
+    assert (project / ".claude/rules/wagtail.md").exists() is (enabled and use_ai_agents == "y")
+    # Wagtail's HomePage replaces the Django home page at /
+    assert (project / "my_test_project/templates/pages/home.html").exists() is not enabled
+    assert ("wagtail==" in (project / "pyproject.toml").read_text()) is enabled
 
 
 @pytest.mark.parametrize(

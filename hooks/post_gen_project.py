@@ -117,6 +117,21 @@ def remove_ai_agent_vite_files():
     Path(".mcp.json").unlink()
 
 
+def remove_wagtail_files():
+    shutil.rmtree(Path("{{ cookiecutter.project_slug }}", "cms"))
+    shutil.rmtree(Path("{{ cookiecutter.project_slug }}", "templates", "cms"))
+    Path("{{ cookiecutter.project_slug }}", "users", "wagtail_apps.py").unlink()
+    Path("{{ cookiecutter.project_slug }}", "users", "wagtail_admin.py").unlink()
+    Path("{{ cookiecutter.project_slug }}", "users", "tests", "test_wagtail.py").unlink()
+    # .claude/ is already gone without AI agent files
+    Path(".claude", "rules", "wagtail.md").unlink(missing_ok=True)
+
+
+def remove_django_home_page():
+    # Wagtail's HomePage serves / instead
+    Path("{{ cookiecutter.project_slug }}", "templates", "pages", "home.html").unlink()
+
+
 def remove_utility_files():
     shutil.rmtree("utility")
 
@@ -556,6 +571,11 @@ def main():  # noqa: C901, PLR0912, PLR0915
             remove_ai_agent_drf_files()
         if "{{ cookiecutter.frontend_pipeline }}" != "Vite + Vue":
             remove_ai_agent_vite_files()
+
+    if "{{ cookiecutter.use_wagtail }}".lower() == "n":
+        remove_wagtail_files()
+    else:
+        remove_django_home_page()
 
     if "{{ cookiecutter.cloud_provider }}" == "None" and "{{ cookiecutter.use_docker }}".lower() == "n":
         print(

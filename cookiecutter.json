@@ -50,6 +50,7 @@
   "deploy_ssh": "n",
   "postgres_backup": ["WAL-G", "pg_dump"],
   "use_ai_agents": "y",
+  "use_wagtail": "n",
   "keep_local_envs_in_vcs": "y",
   "debug": "n",
   "_copy_without_render": ["frontend/src", ".claude/skills/shadcn-vue"]

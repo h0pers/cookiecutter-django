@@ -171,6 +171,15 @@ use_ai_agents:
 
     It also adds ``ApplicationError`` in ``<project_slug>/core/exceptions.py`` for the service-layer convention, and with DRF an exception handler that renders it as ``400 {"message": ..., "extra": {...}}``.
 
+use_wagtail:
+    Indicates whether the project should include the `Wagtail`_ CMS (off by default):
+
+    * the editor at ``/cms/`` and document downloads at ``/documents/``; Wagtail serves ``/`` and every path not matched before it, in place of ``pages/home.html``
+    * a ``cms`` app with a ``HomePage`` model, and a migration that creates it and points the default Wagtail Site at it
+    * ``manage.py setup_cms``, which recreates the home page and the default Site if they were deleted; it's safe to run repeatedly
+    * Wagtail user forms adapted to the project's ``User`` model, which has ``name`` instead of ``first_name`` and ``last_name``
+    * ``WAGTAILADMIN_BASE_URL`` for links in admin emails, defaulting to ``https://<domain_name>`` in production; with ``DJANGO_ADMIN_FORCE_ALLAUTH`` the editor also signs in through allauth
+
 keep_local_envs_in_vcs:
     Indicates whether the project’s .envs/.local/ should be kept in VCS (comes in handy when working in teams where local environment reproducibility is strongly encouraged).
 
@@ -235,3 +244,5 @@ debug:
 .. _Drone CI: https://docs.drone.io/pipeline/overview/
 
 .. _Github Actions: https://docs.github.com/en/actions
+
+.. _Wagtail: https://wagtail.org/
